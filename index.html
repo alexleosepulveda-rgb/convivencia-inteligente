@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard Financiero de Morosidad</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 30px; background-color: #f4f7f6; color: #333; }
+        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 6px 15px rgba(0,0,0,0.08); max-width: 1100px; margin: auto; }
+        h2 { color: #2c3e50; margin-bottom: 25px; font-weight: 600; }
+        .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px; background: #fafbfc; padding: 20px; border-radius: 8px; border: 1px solid #e1e4e8; }
+        .filter-group { display: flex; flex-direction: column; }
+        label { font-weight: 600; margin-bottom: 8px; color: #4a5568; font-size: 14px; }
+        select { padding: 10px; border-radius: 6px; border: 1px solid #cbd5e0; font-size: 14px; background: white; outline: none; transition: border 0.2s; }
+        select:focus { border-color: #3182ce; box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15); }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>📊 Dashboard de Morosidad por Ciclo y Cursos</h2>
+    <div class="filters">
+        <div class="filter-group">
+            <label for="selectCiclo">Ciclo Académico:</label>
+            <select id="selectCiclo" onchange="actualizarNiveles()"></select>
+        </div>
+        <div class="filter-group">
+            <label for="selectNivel">Nivel o Curso:</label>
+            <select id="selectNivel" onchange="actualizarGrafico()">
+                <option value="TODOS">-- Todos los niveles de este ciclo --</option>
+            </select>
+        </div>
+    </div>
+    <div id="grafico" style="width:100%; height:520px;"></div>
+</div>
+
+<script>
+    const jerarquiaDatos = {"2° Ciclo (1° a 6° Básico)": {"consolidado_niveles": {"1°": {"1 a 30 días": 13907775, "31 a 60 días": 6461730, "61 a 90 días": 5314391, "Más de 90 días": 2687081}, "2°": {"1 a 30 días": 27927311, "31 a 60 días": 11906172, "61 a 90 días": 8079474, "Más de 90 días": 6857147}, "3°": {"1 a 30 días": 20940554, "31 a 60 días": 10744488, "61 a 90 días": 5522829, "Más de 90 días": 4190528}, "4°": {"1 a 30 días": 22646279, "31 a 60 días": 13554537, "61 a 90 días": 4830319, "Más de 90 días": 3943347}, "5°": {"1 a 30 días": 25497977, "31 a 60 días": 10274940, "61 a 90 días": 7492524, "Más de 90 días": 7075878}, "6°": {"1 a 30 días": 18783466, "31 a 60 días": 8147322, "61 a 90 días": 5225539, "Más de 90 días": 4261410}}, "por_nivel": {"1°": {"1-A": {"1 a 30 días": 515635, "31 a 60 días": 381447, "61 a 90 días": 729493}, "1-B": {"1 a 30 días": 1015839, "31 a 60 días": 127451}, "1-C": {"1 a 30 días": 3571153, "31 a 60 días": 1713218, "61 a 90 días": 2606642, "Más de 90 días": 397945}, "1-D": {"1 a 30 días": 2294680, "31 a 60 días": 1468292, "61 a 90 días": 329666, "Más de 90 días": 465902}, "1-E": {"1 a 30 días": 2426345, "31 a 60 días": 676337, "61 a 90 días": 188084, "Más de 90 días": 288669}, "1-F": {"1 a 30 días": 1344707, "31 a 60 días": 792013, "61 a 90 días": 359621, "Más de 90 días": 580174}, "1-G": {"1 a 30 días": 1985378, "31 a 60 días": 708701, "61 a 90 días": 646268, "Más de 90 días": 228489}, "1-H": {"1 a 30 días": 754038, "31 a 60 días": 594271, "61 a 90 días": 454617, "Más de 90 días": 725902}}, "2°": {"2-A": {"1 a 30 días": -890915, "31 a 60 días": 143164, "61 a 90 días": 286155, "Más de 90 días": 538733}, "2-B": {"1 a 30 días": 1450816, "31 a 60 días": 1578971, "61 a 90 días": 349027, "Más de 90 días": 810028}, "2-C": {"1 a 30 días": 1460022, "31 a 60 días": 1580082, "61 a 90 días": 653175, "Más de 90 días": 415406}, "2-D": {"1 a 30 días": 4676646, "31 a 60 días": 519851, "61 a 90 días": 1398349, "Más de 90 días": 1265663}, "2-E": {"1 a 30 días": 5042878, "31 a 60 días": 2659484, "61 a 90 días": 1842689, "Más de 90 días": 748893}, "2-F": {"1 a 30 días": 3380773, "31 a 60 días": 1398643, "61 a 90 días": 600340, "Más de 90 días": 813365}, "2-G": {"1 a 30 días": 6682115, "31 a 60 días": 2005170, "61 a 90 días": 1095565, "Más de 90 días": 1354171}, "2-H": {"1 a 30 días": 6124976, "31 a 60 días": 2020807, "61 a 90 días": 1854174, "Más de 90 días": 910888}}, "3°": {"3-A": {"1 a 30 días": 1750916, "31 a 60 días": 1143959, "61 a 90 días": 1277075, "Más de 90 días": 835086}, "3-B": {"1 a 30 días": 1108209, "31 a 60 días": 627578, "61 a 90 días": 761377, "Más de 90 días": 72963}, "3-C": {"1 a 30 días": 4695860, "31 a 60 días": 2535747, "61 a 90 días": 1023713, "Más de 90 días": 303264}, "3-D": {"1 a 30 días": 3136332, "31 a 60 días": 859093, "61 a 90 días": 225803, "Más de 90 días": 295354}, "3-E": {"1 a 30 días": 2688135, "31 a 60 días": 1282014, "Más de 90 días": 542381}, "3-F": {"1 a 30 días": 1661487, "31 a 60 días": 809590, "61 a 90 días": 923023, "Más de 90 días": 316197}, "3-G": {"1 a 30 días": 5899615, "31 a 60 días": 3486507, "61 a 90 días": 1311838, "Más de 90 días": 1825283}}, "4°": {"4-A": {"1 a 30 días": 5037818, "31 a 60 días": 4250078, "61 a 90 días": 202747, "Más de 90 días": 412652}, "4-B": {"1 a 30 días": 2712924, "31 a 60 días": 907586, "61 a 90 días": 977983, "Más de 90 días": 205072}, "4-C": {"1 a 30 días": 3454404, "31 a 60 días": 899800, "61 a 90 días": 202339, "Más de 90 días": 250480}, "4-D": {"1 a 30 días": 2521561, "31 a 60 días": 1514928, "61 a 90 días": 404166, "Más de 90 días": 487709}, "4-E": {"1 a 30 días": 2589657, "31 a 60 días": 1216180, "61 a 90 días": 352056, "Más de 90 días": 480212}, "4-F": {"1 a 30 días": 2046951, "31 a 60 días": 1395497, "61 a 90 días": 1699851, "Más de 90 días": 946315}, "4-G": {"1 a 30 días": 4282964, "31 a 60 días": 3370468, "61 a 90 días": 991177, "Más de 90 días": 1160907}}, "5°": {"5-A": {"1 a 30 días": 2220599, "31 a 60 días": 811938, "61 a 90 días": 741746, "Más de 90 días": 143235}, "5-B": {"1 a 30 días": 1381218, "31 a 60 días": 362859, "61 a 90 días": 414184, "Más de 90 días": 702877}, "5-C": {"1 a 30 días": 4741909, "31 a 60 días": 1877863, "61 a 90 días": 1124307, "Más de 90 días": 1464286}, "5-D": {"1 a 30 días": 4537597, "31 a 60 días": 1682695, "61 a 90 días": 1811380, "Más de 90 días": 267749}, "5-E": {"1 a 30 días": 5485575, "31 a 60 días": 2958217, "61 a 90 días": 1204246, "Más de 90 días": 3315526}, "5-F": {"1 a 30 días": 2864518, "31 a 60 días": 1173346, "61 a 90 días": 613541, "Más de 90 días": 507767}, "5-G": {"1 a 30 días": 4266561, "31 a 60 días": 1408022, "61 a 90 días": 1583120, "Más de 90 días": 674438}}, "6°": {"6-A": {"1 a 30 días": 730036, "31 a 60 días": 436646}, "6-B": {"1 a 30 días": 4072908, "31 a 60 días": 1995947, "61 a 90 días": 492835, "Más de 90 días": 384531}, "6-C": {"1 a 30 días": 1225090, "31 a 60 días": 1576548, "61 a 90 días": 643886}, "6-D": {"1 a 30 días": 2292149, "31 a 60 días": 395689, "61 a 90 días": 1471723}, "6-E": {"1 a 30 días": 6009275, "31 a 60 días": 1854714, "61 a 90 días": 2057739, "Más de 90 días": 779121}, "6-F": {"1 a 30 días": 2889971, "31 a 60 días": 917234, "61 a 90 días": 216071, "Más de 90 días": 1294170}, "6-G": {"1 a 30 días": 1564037, "31 a 60 días": 970544, "61 a 90 días": 343285, "Más de 90 días": 1803588}}}}, "3° Ciclo (7° a 4° Medio)": {"consolidado_niveles": {"I": {"1 a 30 días": 26036672, "31 a 60 días": 12101380, "61 a 90 días": 9237343, "Más de 90 días": 5754415}, "II": {"1 a 30 días": 22612180, "31 a 60 días": 12579922, "61 a 90 días": 7432027, "Más de 90 días": 3857644}, "III": {"1 a 30 días": 21547633, "31 a 60 días": 9748716, "61 a 90 días": 4936105, "Más de 90 días": 3263211}, "IV": {"1 a 30 días": 13690675, "31 a 60 días": 8566814, "61 a 90 días": 3542608, "Más de 90 días": 3102127}, "7°": {"1 a 30 días": 32009190, "31 a 60 días": 16717467, "61 a 90 días": 10099782, "Más de 90 días": 5909604}, "8°": {"1 a 30 días": 16501911, "31 a 60 días": 9947856, "61 a 90 días": 6343225, "Más de 90 días": 2754368}}, "por_nivel": {"I": {"I-A": {"1 a 30 días": 899979, "31 a 60 días": 734109, "61 a 90 días": 638564, "Más de 90 días": 100587}, "I-B": {"1 a 30 días": 2952098, "31 a 60 días": 2173369, "61 a 90 días": 635461, "Más de 90 días": 787225}, "I-C": {"1 a 30 días": 10587840, "31 a 60 días": 2768376, "61 a 90 días": 4843411, "Más de 90 días": 3639939}, "I-F": {"1 a 30 días": 5524594, "31 a 60 días": 3333945, "61 a 90 días": 662074, "Más de 90 días": 719260}, "I-G": {"1 a 30 días": 6072161, "31 a 60 días": 3091581, "61 a 90 días": 2457833, "Más de 90 días": 507404}}, "II": {"II-A": {"1 a 30 días": 5810772, "31 a 60 días": 4260979, "61 a 90 días": 2708777, "Más de 90 días": 533244}, "II-B": {"1 a 30 días": 2644923, "31 a 60 días": 1581706, "61 a 90 días": 104726, "Más de 90 días": 559865}, "II-C": {"1 a 30 días": 10053480, "31 a 60 días": 5388448, "61 a 90 días": 3986048, "Más de 90 días": 1679693}, "II-F": {"1 a 30 días": 820557, "31 a 60 días": 654724, "61 a 90 días": 70794}, "II-G": {"1 a 30 días": 915144, "61 a 90 días": 215221}, "II-H": {"1 a 30 días": 2367304, "31 a 60 días": 694065, "61 a 90 días": 346461, "Más de 90 días": 1084842}}, "III": {"III-A": {"1 a 30 días": 11504305, "31 a 60 días": 6138104, "61 a 90 días": 2068703, "Más de 90 días": 1095573}, "III-B": {"1 a 30 días": 2049726, "31 a 60 días": 1592250, "61 a 90 días": 917548, "Más de 90 días": 956475}, "III-C": {"1 a 30 días": 2043238, "31 a 60 días": 412155, "61 a 90 días": 94436}, "III-D": {"1 a 30 días": 759293, "31 a 60 días": 520118, "61 a 90 días": 481598, "Más de 90 días": 314881}, "III-F": {"1 a 30 días": 2803478, "31 a 60 días": 804638, "61 a 90 días": 736919, "Más de 90 días": 486219}, "III-G": {"1 a 30 días": 2387593, "31 a 60 días": 281451, "61 a 90 días": 636901, "Más de 90 días": 410063}}, "IV": {"IV-A": {"1 a 30 días": 2276579, "31 a 60 días": 2344913, "61 a 90 días": 1080387, "Más de 90 días": 727923}, "IV-B": {"1 a 30 días": 2954472, "31 a 60 días": 2862992, "61 a 90 días": 60368, "Más de 90 días": 1295022}, "IV-C": {"1 a 30 días": 6447173, "31 a 60 días": 1966593, "61 a 90 días": 1410996, "Más de 90 días": 791073}, "IV-F": {"1 a 30 días": 1458940, "31 a 60 días": 812954, "61 a 90 días": 990857, "Más de 90 días": 288109}, "IV-G": {"1 a 30 días": 553511, "31 a 60 días": 579362}}, "7°": {"7-A": {"1 a 30 días": 3365886, "31 a 60 días": 1510233, "61 a 90 días": 1126593, "Más de 90 días": 1579943}, "7-B": {"1 a 30 días": 7807896, "31 a 60 días": 3911317, "61 a 90 días": 2396233, "Más de 90 días": 1350164}, "7-C": {"1 a 30 días": 9314034, "31 a 60 días": 4739213, "61 a 90 días": 2229475, "Más de 90 días": 1830963}, "7-F": {"1 a 30 días": 7153258, "31 a 60 días": 5665616, "61 a 90 días": 3423303, "Más de 90 días": 728131}, "7-G": {"1 a 30 días": 3315685, "31 a 60 días": -260471, "61 a 90 días": 253356, "Más de 90 días": 250651}, "7-H": {"1 a 30 días": 1052431, "31 a 60 días": 1151559, "61 a 90 días": 670822, "Más de 90 días": 169752}}, "8°": {"8-A": {"1 a 30 días": 3224924, "31 a 60 días": 2159101, "61 a 90 días": 2547126, "Más de 90 días": 1368509}, "8-B": {"1 a 30 días": 5553230, "31 a 60 días": 3349239, "61 a 90 días": 1563946, "Más de 90 días": 885234}, "8-F": {"1 a 30 días": 1176384, "31 a 60 días": 1010730, "61 a 90 días": 373157}, "8-G": {"1 a 30 días": 1406832, "31 a 60 días": 1457397, "61 a 90 días": 546725, "Más de 90 días": 467324}, "8-H": {"1 a 30 días": 5140541, "31 a 60 días": 1971389, "61 a 90 días": 1312271, "Más de 90 días": 33301}}}}, "Ciclo Inicial": {"consolidado_niveles": {"KG": {"1 a 30 días": 10366666, "31 a 60 días": 5577185, "61 a 90 días": 2895824, "Más de 90 días": 3132413}, "PK": {"1 a 30 días": 2696521, "31 a 60 días": 205595, "61 a 90 días": 556734, "Más de 90 días": 362775}}, "por_nivel": {"KG": {"KG-A": {"1 a 30 días": 1482437, "31 a 60 días": 1770188, "61 a 90 días": 291733, "Más de 90 días": 897042}, "KG-B": {"1 a 30 días": 495682, "31 a 60 días": 192811, "Más de 90 días": 642134}, "KG-C": {"1 a 30 días": 933580, "31 a 60 días": 191549, "61 a 90 días": 153218, "Más de 90 días": 352829}, "KG-D": {"1 a 30 días": 950679, "31 a 60 días": 34636, "61 a 90 días": 834811}, "KG-E": {"1 a 30 días": 1582026, "31 a 60 días": 206462, "61 a 90 días": 753125, "Más de 90 días": 268733}, "KG-F": {"1 a 30 días": 1539193, "31 a 60 días": 388448, "61 a 90 días": 289921, "Más de 90 días": 324733}, "KG-G": {"1 a 30 días": 2587692, "31 a 60 días": 1072782, "61 a 90 días": 68712}, "KG-H": {"1 a 30 días": 795377, "31 a 60 días": 1720309, "61 a 90 días": 504304, "Más de 90 días": 646942}}, "PK": {"PK-C": {"1 a 30 días": 129111, "31 a 60 días": 173206, "Más de 90 días": 122054}, "PK-D": {"31 a 60 días": 228395, "61 a 90 días": 392003}, "PK-F": {"1 a 30 días": 290349}, "PK-G": {"1 a 30 días": 1696099, "31 a 60 días": 90205}, "PK-H": {"1 a 30 días": 580962, "31 a 60 días": -286211, "61 a 90 días": 164731, "Más de 90 días": 240721}}}}};
+    const tramosUnicos = ["1 a 30 días", "31 a 60 días", "61 a 90 días", "Más de 90 días"];
+
+    function getColor(index) {
+        const colors = ['#2b6cb0', '#dd6b20', '#38a169', '#e53e3e', '#805ad5', '#319795'];
+        return colors[index % colors.length];
+    }
+
+    function inicializar() {
+        const selCiclo = document.getElementById('selectCiclo');
+        selCiclo.innerHTML = '';
+        for (let ciclo in jerarquiaDatos) {
+            let opt = document.createElement('option');
+            opt.value = ciclo;
+            opt.textContent = ciclo;
+            selCiclo.appendChild(opt);
+        }
+        actualizarNiveles();
+    }
+
+    function actualizarNiveles() {
+        const cicloSel = document.getElementById('selectCiclo').value;
+        const selNivel = document.getElementById('selectNivel');
+
+        selNivel.innerHTML = '<option value="TODOS">-- Todos los niveles de este ciclo --</option>';
+
+        if (jerarquiaDatos[cicloSel] && jerarquiaDatos[cicloSel].consolidado_niveles) {
+            for (let nivel in jerarquiaDatos[cicloSel].consolidado_niveles) {
+                let opt = document.createElement('option');
+                opt.value = nivel;
+                opt.textContent = nivel;
+                selNivel.appendChild(opt);
+            }
+        }
+        actualizarGrafico();
+    }
+
+    function actualizarGrafico() {
+        const cicloSel = document.getElementById('selectCiclo').value;
+        const nivelSel = document.getElementById('selectNivel').value;
+
+        let datosAProcesar = {};
+        let xEtiquetas = [];
+        let tituloSub = "";
+
+        if (nivelSel === "TODOS") {
+            xEtiquetas = Object.keys(jerarquiaDatos[cicloSel].consolidado_niveles || {});
+            tramosUnicos.forEach(tramo => {
+                datosAProcesar[tramo] = [];
+                xEtiquetas.forEach(niv => {
+                    let val = jerarquiaDatos[cicloSel].consolidado_niveles[niv][tramo] || 0;
+                    datosAProcesar[tramo].push(val);
+                });
+            });
+            tituloSub = `Vista General - ${cicloSel}`;
+        } else {
+            let seccionesObj = jerarquiaDatos[cicloSel].por_nivel[nivelSel] || {};
+            xEtiquetas = Object.keys(seccionesObj);
+
+            tramosUnicos.forEach(tramo => {
+                datosAProcesar[tramo] = [];
+                xEtiquetas.forEach(sec => {
+                    let val = seccionesObj[sec][tramo] || 0;
+                    datosAProcesar[tramo].push(val);
+                });
+            });
+            tituloSub = `Desglose de Secciones - Nivel: ${nivelSel} (${cicloSel})`;
+        }
+
+        // Calcular valor máximo para escalar la altura de la punta de flecha
+        let maxVal = 0;
+        tramosUnicos.forEach(tramo => {
+            (datosAProcesar[tramo] || []).forEach(v => { if (v > maxVal) maxVal = v; });
+        });
+        if (maxVal === 0) maxVal = 10;
+
+        let data = [];
+        let shapes = [];
+        let numTramos = tramosUnicos.length;
+        let groupWidth = 0.75;
+        let barWidth = groupWidth / numTramos;
+
+        tramosUnicos.forEach((tramo, tIndex) => {
+            let yValues = datosAProcesar[tramo];
+            let colorActual = getColor(tIndex);
+
+            // 1. Traza invisible para mantener los tooltips interactivos sin estorbar el diseño
+            data.push({
+                x: xEtiquetas,
+                y: yValues,
+                type: 'bar',
+                marker: { color: 'rgba(0,0,0,0)' },
+                showlegend: false,
+                hovertemplate: '<b>%{x}</b><br>Tramo: ' + tramo + '<br>Monto: $%{y:,.0f}<extra></extra>'
+            });
+
+            // 2. Traza independiente fantasma exclusivamente para mostrar el color correcto en la leyenda
+            data.push({
+                x: [null],
+                y: [null],
+                name: tramo,
+                mode: 'markers',
+                marker: { symbol: 'square', size: 12, color: colorActual },
+                showlegend: true
+            });
+
+            // Construir formas vectoriales personalizadas con punta de flecha en formato vertical
+            yValues.forEach((val, i) => {
+                if (val <= 0) return;
+
+                let xCenter = i + (tIndex - (numTramos - 1) / 2) * barWidth;
+                let halfWidth = barWidth * 0.42;
+
+                let xLeft = xCenter - halfWidth;
+                let xRight = xCenter + halfWidth;
+                let xMid = xCenter;
+
+                let tipHeight = maxVal * 0.035; // Altura del bisel de la flecha
+                let bodyTop = val - tipHeight;
+                if (bodyTop < 0) bodyTop = val * 0.5;
+
+                // Path SVG para columna vertical con punta de flecha superior
+                let path = `M ${xLeft},0 L ${xLeft},${bodyTop} L ${xMid},${val} L ${xRight},${bodyTop} L ${xRight},0 Z`;
+
+                shapes.push({
+                    type: 'path',
+                    path: path,
+                    fillcolor: colorActual,
+                    line: { color: '#ffffff', width: 1.5 },
+                    layer: 'above'
+                });
+            });
+        });
+
+        let layout = {
+            title: { text: `Deuda por Morosidad - ${tituloSub}`, font: { size: 18, color: '#2c3e50' } },
+            barmode: 'group',
+            bargap: 0.22,
+            bargroupgap: 0.05,
+            xaxis: { title: '<b>Cursos / Niveles</b>', tickangle: 0, gridcolor: '#edf2f7', zeroline: false },
+            yaxis: { title: '<b>Saldos Totales ($)</b>', tickformat: ',.0f', gridcolor: '#edf2f7', zeroline: false },
+            plot_bgcolor: '#fafbfc',
+            paper_bgcolor: '#ffffff',
+            shapes: shapes,
+            legend: { title: { text: '<b>Tramos de Morosidad</b>' }, orientation: 'h', y: -0.25 },
+            margin: { t: 60, b: 90, l: 80, r: 40 }
+        };
+
+        Plotly.newPlot('grafico', data, layout, {responsive: true});
+    }
+
+    window.onload = inicializar;
+</script>
+</body>
+</html>
